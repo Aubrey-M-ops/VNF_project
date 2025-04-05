@@ -67,7 +67,7 @@ def calculate_neighbor_latency_vt(vnf, substrate_network, user_location):
 
 
 # Choose Ns for VNF (by x(T))
-def embedding_group(vnf, MP, substrate_network, user_location):
+def embedding_group_with_latency(vnf, MP, substrate_network, user_location):
     # min_latency was a very large number, make it smaller in the process
     min_latency = float('inf')
     best_node = None
