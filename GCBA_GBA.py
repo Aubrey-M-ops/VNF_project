@@ -1,3 +1,5 @@
+# ⚠️ orginal version: This is how GCBA & GBA are implemented in the paper
+
 # GCBA
 def group_connectivity_based_algorithm(substrate_network, vnf_set):
     MP = set()  # 1. Initialize an empty set for mappings
@@ -21,20 +23,20 @@ def group_based_algorithm(substrate_network, vnf_set):
     # 2. Calculate v(T) for each VNF v in the set of VNFs (neighborhood resource)
     vnf_values = {}  # v(T)
     for vnf in vnf_set:
-        vnf_values[vnf] = calculate_vnf_value(vnf)
+        vnf_values[vnf] = calculate_neighbor_vT(vnf)
 
     # 3. Descending-order list of VNFs based on v(T) value (V(T) ⬇️)
     sorted_vnfs = sorted(
         vnf_set, key=lambda vnf: vnf_values[vnf], reverse=True)
     for vnf in sorted_vnfs:  # Process VNFs one by one in sorted order
-        # Step 7: Embed the VNF to the appropriate substrate node
+        # 4. Embed the VNF to the appropriate substrate node
         embedding_group(vnf, MP)
 
     return MP  # Return the final mapping of VNFs to substrate nodes
 
 
 # Calculate neighborhood resource (v(T))
-def calculate_vnf_value(vnf):
+def calculate_neighbor_vT(vnf):
     return 1
 
 
