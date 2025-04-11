@@ -1,4 +1,7 @@
 # GCBA & GBA - with latency as  ✨performance metrics✨
+from Substrate import SubstrateNetwork, SubstrateNode, VNF, haversine
+from env_simulation import generate_dataset
+from user_prediction import train_user_prediction_model, predict_user_locations
 
 ####################### ALGORITHM #######################
 # GCBA with latency optimization
@@ -15,7 +18,7 @@ def group_connectivity_based_algorithm(substrate_network, vnf_set):
 
         for vnf in Nu_i:  # For each VNF in the cluster
             # Embed the VNF to the appropriate substrate node(Ns)
-            latency = embedding_group_with_latency(vnf, substrate_network, MP)
+            latency = embedding_group(vnf, substrate_network, MP)
             cluster_latency += latency
             MP.add((vnf, vnf.ns))
         # update total latency
@@ -67,7 +70,7 @@ def calculate_neighbor_latency_vt(vnf, substrate_network, user_location):
 
 
 # Choose Ns for VNF (by x(T))
-def embedding_group_with_latency(vnf, MP, substrate_network, user_location):
+def embedding_group(vnf, MP, substrate_network, user_location):
     # min_latency was a very large number, make it smaller in the process
     min_latency = float('inf')
     best_node = None
@@ -87,3 +90,44 @@ def embedding_group_with_latency(vnf, MP, substrate_network, user_location):
     best_node.host(vnf)
     vnf.ns = best_node  # best substrate node
     return min_latency  # minimum latency
+
+
+def main():
+    # Simulate environment
+    print('👉 Starting dataset generation...')
+    user_movements, base_stations = generate_dataset(610000, 50)
+    user_movements.to_csv('./datasets/simulated_sf_users.csv', index=False)
+    base_station_df = pd.DataFrame([(bs.location[0], bs.location[1]) for bs in base_stations], columns=['x', 'y'])
+    base_station_df.to_csv('./datasets/simulated_base_stations.csv', index=False)
+    print('👉 Environment simulation completed!')
+
+    # Train user prediction model
+    model = train_user_prediction_model('./datasets/simulated_sf_users.csv')
+
+    # Predict user end locations
+    predicted_locations = predict_user_locations(model, user_movements)
+
+    # Initialize substrate network and VNFs
+    substrate_network = SubstrateNetwork()
+    substrate_network.nodes = base_stations
+    vnf_set = [[VNF(i, cpu_req=10, mem_req=10) for i in range(10)], 
+               [VNF(i + 10, cpu_req=10, mem_req=10) for i in range(5)]]
+
+    # Run GCBA
+    print('👉 Running GCBA...')
+    gcba_mp, gcba_latency = group_connectivity_based_algorithm(substrate_network, vnf_set, predicted_locations)
+    print(f'👉 GCBA Total Latency: {gcba_latency:.2f} km')
+
+    # Reset substrate network for GBA
+    for node in substrate_network.nodes:
+        node.cpu = 100
+        node.memory = 100
+        node.hosted_vnfs = []
+
+    # Run GBA
+    print('👉 Running GBA...')
+    gba_mp, gba_latency = group_based_algorithm(substrate_network, sum(vnf_set, []), predicted_locations)
+    print(f'👉 GBA Total Latency: {gba_latency:.2f} km')
+
+if __name__ == '__main__':
+    main()

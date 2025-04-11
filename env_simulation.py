@@ -124,21 +124,16 @@ def generate_dataset(num_trajectories, num_base_stations):
     return user_movements, base_stations
 
 ############################ Main Function ############################
-print('👉 Starting dataset generation...')
-user_movements, base_stations = generate_dataset(NUM_TRAJECTORIES, NUM_BASE_STATIONS)
-print('👉 Dataset generation completed!')
-
-# save user movements to CSV
-output_path = './datasets/simulated_sf_users.csv'
-user_movements.to_csv(output_path, index=False)
-print(f'👉 User trajectories saved to {output_path}')
-
-# save base stations to CSV
-base_station_df = pd.DataFrame(base_stations, columns=['x', 'y'])
-base_station_path = './datasets/simulated_base_stations.csv'
-base_station_df.to_csv(base_station_path, index=False)
-print(f'👉 Base stations saved to {base_station_path}')
-
-# show sample of generated dataset
-print('\n👉 Sample of generated dataset:')
-print(user_movements.head())
+if __name__ == '__main__':
+    print('👉 Starting dataset generation...')
+    user_movements, base_stations = generate_dataset(NUM_TRAJECTORIES, NUM_BASE_STATIONS)
+    print('👉 Dataset generation completed!')
+    # save user movements to CSV
+    output_path = './datasets/simulated_sf_users.csv'
+    user_movements.to_csv(output_path, index=False)
+    # save base stations to CSV
+    base_station_df = pd.DataFrame(base_stations, columns=['x', 'y'])
+    base_station_path = './datasets/simulated_base_stations.csv'
+    base_station_df.to_csv(base_station_path, index=False)
+    print(f'👉 Base stations saved to {base_station_path}')
+    print('👉 Environment simulation completed!')

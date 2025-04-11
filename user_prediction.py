@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from math import radians, sin, cos, sqrt, atan2
 import time
+from Substrate import haversine
 
 def train_user_prediction_model(data_path):
     print('👉 Training XGBoost model...')
@@ -44,12 +45,15 @@ def train_user_prediction_model(data_path):
     print('👉 Model training and evaluation completed!')
     return xgb
 
+def predict_user_locations(model, user_data):
+    print('👉 Predicting user end locations...')
+    user_data['start_x'] = user_data['start_point'].str.extract(r'POINT\(([-.\d]+) ([-.\d]+)\)')[0].astype(float)
+    user_data['start_y'] = user_data['start_point'].str.extract(r'POINT\(([-.\d]+) ([-.\d]+)\)')[1].astype(float)
+    user_data['timestamp'] = pd.to_datetime(user_data['timestamp'])
+    user_data['hour'] = user_data['timestamp'].dt.hour
+    user_data['day_of_week'] = user_data['timestamp'].dt.dayofweek
 
-# a more precise way to calculate distance error
-def haversine(lon1, lat1, lon2, lat2):
-    R = 6371
-    dlon = radians(lon2 - lon1)
-    dlat = radians(lat2 - lat1)
-    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1-a))
-    return R * c
+    X = user_data[['start_x', 'start_y', 'hour', 'day_of_week']]
+    predictions = model.predict(X)
+    return predictions  # Returns array of [end_x, end_y]
+
