@@ -1,8 +1,9 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from math import radians, sin, cos, sqrt, atan2
+import time
 
 ############################ Data Preparation ############################
 
@@ -29,12 +30,12 @@ print('👉 Extracting time features...')
 data['timestamp'] = pd.to_datetime(data['timestamp'])
 data['hour'] = data['timestamp'].dt.hour
 data['day_of_week'] = data['timestamp'].dt.dayofweek
-data['is_weekend'] = data['day_of_week'].isin([5, 6]).astype(int)
+# data['is_weekend'] = data['day_of_week'].isin([5, 6]).astype(int)
 print('👉 Time features extracted!')
 
 # feature : timestamp, start_point
 # target : end_point
-X = data[['start_x', 'start_y', 'hour', 'day_of_week', 'is_weekend']]
+X = data[['start_x', 'start_y', 'hour', 'day_of_week']]
 y = data[['end_x', 'end_y']]
 
 # separate data ( train/test )
@@ -45,16 +46,23 @@ X_train, X_test, y_train, y_test = train_test_split(
 ############################ Train ############################
 
 # initialize RandomForestRegressor
-rf = RandomForestRegressor(
-    n_estimators=100, max_depth=20, random_state=42, n_jobs=-1)
+xgb = XGBRegressor(
+    n_estimators=100, 
+    max_depth=20, 
+    learning_rate=0.1, 
+    random_state=42, 
+    n_jobs=-1
+);
 print('👉 start training...')
 # train the model
-rf.fit(X_train, y_train)
-print('👉 training done!')
-print('👉 generating prediction...')
+start_time = time.time()
+xgb.fit(X_train, y_train)
+end_time = time.time()
+print(f'👉 Training done! Time taken: {end_time - start_time:.2f} seconds')
+print('👉 Generating predictions...')
 # make predictions
-y_pred = rf.predict(X_test)
-print('👉 prediction done!')
+y_pred = xgb.predict(X_test)
+print('👉 Prediction done!')
 
 
 ############################ Evaluation ############################

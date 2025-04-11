@@ -2,34 +2,79 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import random
+from gurobipy import Model, GRB, quicksum
 
-# set random seed for reproducibility
+# set radom seed to ensure reproducibility
 np.random.seed(42)
 random.seed(42)
 
-# define x, y coordinate range (san francisco)
+#  X and Y range in San Francisco
 SF_X_MIN, SF_X_MAX = -122.5, -122.3
 SF_Y_MIN, SF_Y_MAX = 37.7, 37.8
 
-# define parameters
+#  Parameters
 NUM_BASE_STATIONS = 50     # base station number
-NUM_TRAJECTORIES = 610000  # user trajectory number
-START_DATE = datetime(2023, 1, 1)  # start date for trajectory generation
+NUM_TRAJECTORIES = 610000  # user tracker number
+START_DATE = datetime(2023, 1, 1)  # start date
 
-#####################Simulation Tool Functions###########################
+##################### Simulation Tool Functions ###########################
 
-# generate base stations []
+# use Gurobi to optimize base station locations
 def generate_base_stations(num_stations):
-    base_stations = []
+    print('👉 Optimizing base station locations with Gurobi...')
+    model = Model("BaseStationPlacement")
+
+    # {x,y}
+    stations = {}
     for i in range(num_stations):
-        # generate random x coordinate
-        x = np.random.uniform(SF_X_MIN, SF_X_MAX)
-        # generate random y coordinate
-        y = np.random.uniform(SF_Y_MIN, SF_Y_MAX)
-        base_stations.append((x, y))
+        # generate x, y
+        stations[i] = {
+            'x': model.addVar(lb=SF_X_MIN, ub=SF_X_MAX, vtype=GRB.CONTINUOUS, name=f'x_{i}'),
+            'y': model.addVar(lb=SF_Y_MIN, ub=SF_Y_MAX, vtype=GRB.CONTINUOUS, name=f'y_{i}')
+        }
+
+    # Objective function: Minimize the variance of base station locations
+    centroid_x = quicksum(stations[i]['x'] for i in range(num_stations)) / num_stations
+    centroid_y = quicksum(stations[i]['y'] for i in range(num_stations)) / num_stations
+    variance = quicksum((stations[i]['x'] - centroid_x) * (stations[i]['x'] - centroid_x) +
+                        (stations[i]['y'] - centroid_y) * (stations[i]['y'] - centroid_y)
+                        for i in range(num_stations))
+    model.setObjective(variance, GRB.MINIMIZE)
+
+    # Constraints: avoid base stations being too close to each other
+    min_distance = 0.01 # minimum distance between base stations (km)
+    for i in range(num_stations):
+        for j in range(i + 1, num_stations):
+            model.addConstr(
+                (stations[i]['x'] - stations[j]['x']) * (stations[i]['x'] - stations[j]['x']) +
+                (stations[i]['y'] - stations[j]['y']) * (stations[i]['y'] - stations[j]['y']) >= min_distance**2
+            )
+
+    # optimize
+    model.optimize()
+
+    # get the optimized base station locations
+    base_stations = []
+    if model.status == GRB.OPTIMAL:
+        for i in range(num_stations):
+            x = stations[i]['x'].x
+            y = stations[i]['y'].x
+            base_stations.append((x, y))
+        print(f'👉 {num_stations} base stations optimized!')
+    else:
+        print('👉 Optimization failed, falling back to random placement...')
+        base_stations = [(np.random.uniform(SF_X_MIN, SF_X_MAX), np.random.uniform(SF_Y_MIN, SF_Y_MAX))
+                         for _ in range(num_stations)]
+
     return base_stations
 
+
+
 # generate one user trajectory => {id, timestamp, start_point, end_point}
+"""
+No need to use Gurobi for this part, just generate random points
+There is no optimization needed
+"""
 def generate_one_trajectory(base_stations, trajectory_id, start_time):
     # near a base station? => randomly choose
     is_trajectory_near_station = random.choice([True, False])
@@ -65,23 +110,18 @@ def generate_one_trajectory(base_stations, trajectory_id, start_time):
 
 # generate dataset
 def generate_dataset(num_trajectories, num_base_stations):
-    print('👉 Generating base stations...')
     base_stations = generate_base_stations(num_base_stations)
-    print(f'👉 {num_base_stations} base stations generated!')
 
     print('👉 Generating user trajectories...')
     trajectories = []
     for i in range(num_trajectories):
         traj = generate_one_trajectory(base_stations, i, START_DATE)
         trajectories.append(traj)
-        # print progress every 100000 trajectories
         if (i + 1) % 100000 == 0:
             print(f'👉 {i + 1} trajectories generated...')
 
-    # trasform to DataFrame
     user_movements = pd.DataFrame(trajectories)
     return user_movements, base_stations
-
 
 ############################ Main Function ############################
 print('👉 Starting dataset generation...')
