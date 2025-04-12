@@ -2,7 +2,6 @@ import pandas as pd
 from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-from math import radians, sin, cos, sqrt, atan2
 import time
 from Substrate import haversine
 
@@ -19,7 +18,7 @@ def train_user_prediction_model(data_path):
     data['hour'] = data['timestamp'].dt.hour
     data['day_of_week'] = data['timestamp'].dt.dayofweek
 
-    X = data[['start_x', 'start_y', 'hour', 'day_of_week']]  # Fixed 'Dallas' typo
+    X = data[['start_x', 'start_y', 'hour', 'day_of_week']] 
     y = data[['end_x', 'end_y']]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)

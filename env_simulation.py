@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 import random
 from gurobipy import Model, GRB, quicksum
 
+from Substrate import SubstrateNode
+
 # set radom seed to ensure reproducibility
 np.random.seed(42)
 random.seed(42)
@@ -55,17 +57,19 @@ def generate_base_stations(num_stations):
 
     # get the optimized base station locations
     base_stations = []
-    if model.status == GRB.OPTIMAL:
+    if model.status == GRB.OPTIMAL: # optimized version
         for i in range(num_stations):
             x = stations[i]['x'].x
             y = stations[i]['y'].x
-            base_stations.append((x, y))
+            # allocate resources to each base station
+            base_stations.append(SubstrateNode(id=i, cpu=100, location=(x, y)))
         print(f'👉 {num_stations} base stations optimized!')
-    else:
+    else: # random version
         print('👉 Optimization failed, falling back to random placement...')
-        base_stations = [(np.random.uniform(SF_X_MIN, SF_X_MAX), np.random.uniform(SF_Y_MIN, SF_Y_MAX))
-                         for _ in range(num_stations)]
-
+        base_stations = [SubstrateNode(id=i, cpu=100,
+                                      location=(np.random.uniform(SF_X_MIN, SF_X_MAX), 
+                                                np.random.uniform(SF_Y_MIN, SF_Y_MAX)))
+                         for i in range(num_stations)]
     return base_stations
 
 
