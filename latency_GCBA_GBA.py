@@ -32,7 +32,10 @@ def group_connectivity_based_algorithm(substrate_network, all_vnf_clusters, user
 
         for vnf in Nu_i:  # For each VNF in the cluster
             # Embed the VNF to the appropriate substrate node(Ns)
-            latency = embedding_group(vnf, substrate_network, MP, user_locations)
+            latency, success = embedding_group(vnf, substrate_network, MP, user_locations)
+            attempted_embeddings_gcba += 1
+            if success:
+                successful_embeddings_gcba += 1
             cluster_latency += latency
             MP.add((vnf, vnf.ns))
         # update total latency
@@ -59,7 +62,11 @@ def group_based_algorithm(substrate_network, vnfs, user_locations):
         vnfs, key=lambda vnf: vnf_values[vnf], reverse=True)
     for vnf in sorted_vnfs:  # Process VNFs one by one in sorted order
         # 4. Embed the VNF to the appropriate substrate node
-        latency = embedding_group(vnf, MP, substrate_network)
+        latency, success = embedding_group(vnf, substrate_network, MP, user_locations)
+        attempted_embeddings_gba += 1
+        if success:
+            successful_embeddings_gba += 1
+
         MP.add((vnf, vnf.ns))
         total_latency += latency
     return MP, total_latency
@@ -88,25 +95,23 @@ def calculate_neighbor_latency_vt(vnf, substrate_network, MP, user_locations):
 
 # Choose position for VNF (by x(T)) => Lantency
 def embedding_group(vnf, substrate_network, MP, user_locations):
-    # min_latency was a very large number, make it smaller in the process
     min_latency = float('inf')
     best_node = None
 
     for ns in substrate_network.nodes:
-        if ns.can_host(vnf):  # does the node have enough resources?
-            # calculate latency to user locations (mean) and find the best ns
+        if ns.can_host(vnf):
             latency = np.mean([substrate_network.get_latency(ns, user_loc) for user_loc in user_locations])
             if latency < min_latency:
                 min_latency = latency
                 best_node = ns
 
     if best_node is None:
-        raise Exception("No suitable substrate node found for VNF")
+        return float('inf'), False  # failure to embed
 
-    # VNF => best substrate node
     best_node.host(vnf)
-    vnf.ns = best_node  # best substrate node
-    return min_latency  # minimum latency
+    vnf.ns = best_node
+    return min_latency, True
+
 
 
 def main():
@@ -141,6 +146,10 @@ def main():
 
     # Run GCBA
     print('👉 Running GCBA...')
+    # Before running GCBA
+    attempted_embeddings_gcba = 0
+    successful_embeddings_gcba = 0
+
     gcba_mp, gcba_latency = group_connectivity_based_algorithm(substrate_network, vnf_clusters, predicted_locations)
     print('👉 GCBA Mapping:')
     print(f'👉 GCBA Total Latency: {gcba_latency:.2f} km')
@@ -155,6 +164,9 @@ def main():
 
     # Run GBA
     print('👉 Running GBA...')
+    attempted_embeddings_gba = 0
+    successful_embeddings_gba = 0
+
     gba_mp, gba_latency = group_based_algorithm(substrate_network, sum(vnf_clusters, []), predicted_locations)
     print(f'👉 GBA Total Latency: {gba_latency:.2f} km')
     print('👉 GBA Mapping:')
@@ -163,4 +175,8 @@ def main():
               f'Location: ({node.location[0]:.5f}, {node.location[1]:.5f})')
 
 if __name__ == '__main__':
+    print(f'👉 GCBA Embedding Success Rate: {successful_embeddings_gcba / attempted_embeddings_gcba * 100:.2f}%')
+    print(f'👉 GBA Embedding Success Rate: {successful_embeddings_gba / attempted_embeddings_gba * 100:.2f}%')
+
+
     main()
