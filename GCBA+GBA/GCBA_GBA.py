@@ -1,4 +1,4 @@
-# ⚠️ orginal version: This is how GCBA & GBA are implemented in the paper
+# This is how GCBA & GBA are implemented in the paper
 
 # GCBA
 def group_connectivity_based_algorithm(substrate_network, vnf_set):

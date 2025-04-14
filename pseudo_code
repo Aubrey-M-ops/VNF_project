@@ -1,0 +1,59 @@
+ALGORITHM Group_Connectivity_Based_Algorithm(substrate_network, vnf_clusters)
+    // Input: substrate_network (network with nodes), vnf_clusters (list of VNF clusters)
+    // Output: MP (set of VNF-to-node mappings)
+    
+    INITIALIZE MP as empty set
+    
+    // Sort clusters by size in descending order
+    sorted_clusters ← SORT vnf_clusters BY size DESCENDING
+    
+    WHILE sorted_clusters is not empty
+        current_cluster ← REMOVE first cluster from sorted_clusters
+        
+        FOR each vnf in current_cluster
+            // Assign vnf to a substrate node
+            Embedding_Group(vnf, MP)
+        END FOR
+    END WHILE
+    
+    RETURN MP
+END ALGORITHM
+
+ALGORITHM Group_Based_Algorithm(substrate_network, vnfs)
+    // Input: substrate_network (network with nodes), vnfs (list of VNFs)
+    // Output: MP (set of VNF-to-node mappings)
+    
+    INITIALIZE MP as empty set
+    INITIALIZE vnf_values as empty dictionary
+    
+    // Calculate v(T) for each VNF
+    FOR each vnf in vnfs
+        vnf_values[vnf] ← Calculate_Neighbor_vT(vnf)
+    END FOR
+    
+    // Sort VNFs by v(T) in descending order
+    sorted_vnfs ← SORT vnfs BY vnf_values[vnf] DESCENDING
+    
+    FOR each vnf in sorted_vnfs
+        // Assign vnf to a substrate node
+        Embedding_Group(vnf, MP)
+    END FOR
+    
+    RETURN MP
+END ALGORITHM
+
+FUNCTION Calculate_Neighbor_vT(vnf)
+    // Input: vnf (a VNF object)
+    // Output: v(T) (a numerical score)
+    
+    RETURN 1  // Placeholder for actual computation
+END FUNCTION
+
+PROCEDURE Embedding_Group(vnf, MP)
+    // Input: vnf (a VNF object), MP (set of mappings)
+    // Modifies: MP (adds new mapping)
+    
+    // Placeholder: Assign vnf to a substrate node
+    // (Actual logic would select node and update MP)
+    NO-OP
+END PROCEDURE
