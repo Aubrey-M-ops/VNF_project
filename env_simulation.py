@@ -52,12 +52,13 @@ def generate_base_stations(num_stations):
                 (stations[i]['y'] - stations[j]['y']) * (stations[i]['y'] - stations[j]['y']) >= min_distance**2
             )
 
+    model.setParam('TimeLimit', 30.0) # set time limit to 30 seconds
     # optimize
     model.optimize()
 
     # get the optimized base station locations
     base_stations = []
-    if model.status == GRB.OPTIMAL: # optimized version
+    if model.status == GRB.OPTIMAL  : # optimized version
         for i in range(num_stations):
             x = stations[i]['x'].x
             y = stations[i]['y'].x
@@ -85,8 +86,8 @@ def generate_one_trajectory(base_stations, trajectory_id, start_time):
     if is_trajectory_near_station and base_stations:
         base = random.choice(base_stations)
         # set user start point near a base station
-        start_x = base[0] + np.random.normal(0, 0.005)
-        start_y = base[1] + np.random.normal(0, 0.005)
+        start_x = base.location[0] + np.random.normal(0, 0.005)
+        start_y = base.location[1] + np.random.normal(0, 0.005)
     else:
         start_x = np.random.uniform(SF_X_MIN, SF_X_MAX)
         start_y = np.random.uniform(SF_Y_MIN, SF_Y_MAX)
