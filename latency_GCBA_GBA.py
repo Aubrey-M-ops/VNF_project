@@ -6,6 +6,9 @@ from KMeans import apply_kmeans_clustering;
 import pandas as pd;
 import numpy as np
 
+VNF_NUM = 10  # Number of VNFs
+BASE_STATION_NUM = 5  # Number of base stations
+
 """
 Adapted from the paper:
 x(T) = Latency (when resouce is enough)
@@ -34,15 +37,18 @@ def group_connectivity_based_algorithm(substrate_network, all_vnf_clusters, user
 
         for vnf in Nu_i:  # For each VNF in the cluster
             # Embed the VNF to the appropriate substrate node(Ns)
+            print(f'Embedding VNF {vnf.id} in cluster {len(Nu_i)}')
             latency, success = embedding_group(vnf, substrate_network, MP, user_locations)
-            successful_embeddings_gcba += 1
             if success:
                 successful_embeddings_gcba += 1
             cluster_latency += latency
             MP.add((vnf, vnf.ns))
         # update total latency
         total_latency += cluster_latency
-    return MP, total_latency, successful_embeddings_gcba
+
+    average_latency = total_latency / successful_embeddings_gcba if successful_embeddings_gcba > 0 else float('inf')
+    
+    return MP, average_latency, successful_embeddings_gcba
 
 
 # GBA
@@ -71,12 +77,15 @@ def group_based_algorithm(substrate_network, vnfs, user_locations):
 
         MP.add((vnf, vnf.ns))
         total_latency += latency
-    return MP, total_latency, successful_embeddings_gba
+   # Calculate average latency (avoid division by zero)
+    average_latency = total_latency / successful_embeddings_gba if successful_embeddings_gba > 0 else float('inf')
+    
+    return MP, average_latency, successful_embeddings_gba
 ##################################################################
 
 
 # Calculate neighborhood latency value  (v(T))
-def calculate_neighbor_latency_vt(vnf, substrate_network, MP, user_locations):
+def calculate_neighbor_latency_vt(vnf, substrate_network, user_locations):
     total_resources = 0
     total_latency = 0
     neighbor_count = 0
@@ -119,7 +128,7 @@ def embedding_group(vnf, substrate_network, MP, user_locations):
 def main():
     # 1️⃣ Simulate environment
     print('👉 Starting dataset generation...')
-    user_movements, base_stations = generate_dataset(610000, 50)
+    user_movements, base_stations = generate_dataset(610000, BASE_STATION_NUM)
     user_movements.to_csv('./datasets/simulated_sf_users.csv', index=False)
     base_station_df = pd.DataFrame([(bs.location[0], bs.location[1]) for bs in base_stations], columns=['x', 'y'])
     base_station_df.to_csv('./datasets/simulated_base_stations.csv', index=False)
@@ -142,14 +151,9 @@ def main():
     substrate_network = SubstrateNetwork()
     substrate_network.nodes = base_stations
 
-   #  TODO: Generate and cluster VNFs using K-means
-    # vnfs = []
-    # vnf_clusters = [[],[]]
-    # Generate VNFs
-    num_vnfs = 100  # Arbitrary number of VNFs, can be adjusted
+   #  Generate and cluster VNFs using K-means
     vnfs = []
-    for i in range(num_vnfs):
-        # Randomly assign CPU requirements (e.g., between 10 and 30)
+    for i in range(VNF_NUM):
         cpu_req = np.random.randint(10, 31)
         # Randomly place VNFs within the simulation area (based on base station locations)
         bs_idx = np.random.randint(0, len(base_stations))
@@ -160,7 +164,8 @@ def main():
     # Cluster VNFs using K-means
     # Extract VNF locations for clustering
     vnf_locations = np.array([vnf.location for vnf in vnfs])
-    num_clusters = 2  # Example: 2 clusters, can be adjusted
+    #TODO: adjust cluster number
+    num_clusters = 3  
     cluster_labels = apply_kmeans_clustering(vnf_locations, num_clusters)
 
     # Group VNFs into clusters based on labels
@@ -169,19 +174,21 @@ def main():
         vnf_clusters[label].append(vnf)
 
 
+    # 5️⃣ Run algorithms with and without user prediction
+
+    # --- With User Prediction ---
+    print('\n=== Running Algorithms With User Prediction ===')
     # Run GCBA
     print('👉 Running GCBA...')
-    # Before running GCBA
-    attempted_embeddings_gcba = 100
-
-    gcba_mp, gcba_latency, successful_embeddings_gcba = group_connectivity_based_algorithm(substrate_network, vnf_clusters, predicted_locations)
-    print('👉 GCBA Mapping:')
-    print(f'👉 GCBA Total Latency: {gcba_latency:.2f} km')
-    for vnf, node in gcba_mp:
+    gcba_mp_pred, gcba_latency_pred, successful_embeddings_gcba_pred = group_connectivity_based_algorithm(
+        substrate_network, vnf_clusters, predicted_locations)
+    print('👉 GCBA Mapping (With Prediction):')
+    print(f'👉 GCBA Total Latency: {gcba_latency_pred:.2f} km')
+    for vnf, node in gcba_mp_pred:
         print(f'  VNF ID: {vnf.id}, Mapped to Base Station ID: {node.id}, '
               f'Location: ({node.location[0]:.5f}, {node.location[1]:.5f})')
-    print(f'🎉 GCBA Embedding Success Number: {successful_embeddings_gcba}')
-    print(f'🎉 GCBA Embedding Success Rate: {successful_embeddings_gcba / attempted_embeddings_gcba * 100:.2f}%')
+    print(f'🎉 GCBA Embedding Success Number: {successful_embeddings_gcba_pred}')
+    print(f'🎉 GCBA Embedding Success Rate: {successful_embeddings_gcba_pred / VNF_NUM * 100:.2f}%')
 
     # Reset substrate network for GBA
     for node in substrate_network.nodes:
@@ -190,16 +197,51 @@ def main():
 
     # Run GBA
     print('👉 Running GBA...')
-    attempted_embeddings_gba = 100
-
-    gba_mp, gba_latency, successful_embeddings_gba = group_based_algorithm(substrate_network, vnfs, predicted_locations)
-    print(f'👉 GBA Total Latency: {gba_latency:.2f} km')
-    print('👉 GBA Mapping:')
-    for vnf, node in gba_mp:
+    gba_mp_pred, gba_latency_pred, successful_embeddings_gba_pred = group_based_algorithm(
+        substrate_network, vnfs, predicted_locations)
+    print(f'👉 GBA Total Latency: {gba_latency_pred:.2f} km')
+    print('👉 GBA Mapping (With Prediction):')
+    for vnf, node in gba_mp_pred:
         print(f'  VNF ID: {vnf.id}, Mapped to Base Station ID: {node.id}, '
               f'Location: ({node.location[0]:.5f}, {node.location[1]:.5f})')
-    print(f'🎉 GCBA Embedding Success Number: {successful_embeddings_gcba}%')
-    print(f'🎉 GBA Embedding Success Rate: {successful_embeddings_gba / attempted_embeddings_gba * 100:.2f}%')
+    print(f'🎉 GBA Embedding Success Number: {successful_embeddings_gba_pred}')
+    print(f'🎉 GBA Embedding Success Rate: {successful_embeddings_gba_pred / VNF_NUM * 100:.2f}%')
 
+    # --- Without User Prediction ---
+    print('\n=== Running Algorithms Without User Prediction ===')
+
+    # Reset substrate network for GCBA
+    for node in substrate_network.nodes:
+        node.cpu = 100
+        node.hosted_vnfs = []
+
+    # Run GCBA
+    print('👉 Running GCBA...')
+    gcba_mp_no_pred, gcba_latency_no_pred, successful_embeddings_gcba_no_pred = group_connectivity_based_algorithm(
+        substrate_network, vnf_clusters, start_locations)
+    print('👉 GCBA Mapping (Without Prediction):')
+    print(f'👉 GCBA Total Latency: {gcba_latency_no_pred:.2f} km')
+    for vnf, node in gcba_mp_no_pred:
+        print(f'  VNF ID: {vnf.id}, Mapped to Base Station ID: {node.id}, '
+              f'Location: ({node.location[0]:.5f}, {node.location[1]:.5f})')
+    print(f'🎉 GCBA Embedding Success Number: {successful_embeddings_gcba_no_pred}')
+    print(f'🎉 GCBA Embedding Success Rate: {successful_embeddings_gcba_no_pred / VNF_NUM * 100:.2f}%')
+
+    # Reset substrate network for GBA
+    for node in substrate_network.nodes:
+        node.cpu = 100
+        node.hosted_vnfs = []
+
+    # Run GBA
+    print('👉 Running GBA...')
+    gba_mp_no_pred, gba_latency_no_pred, successful_embeddings_gba_no_pred = group_based_algorithm(
+        substrate_network, vnfs, start_locations)
+    print(f'👉 GBA Total Latency: {gba_latency_no_pred:.2f} km')
+    print('👉 GBA Mapping (Without Prediction):')
+    for vnf, node in gba_mp_no_pred:
+        print(f'  VNF ID: {vnf.id}, Mapped to Base Station ID: {node.id}, '
+              f'Location: ({node.location[0]:.5f}, {node.location[1]:.5f})')
+    print(f'🎉 GBA Embedding Success Number: {successful_embeddings_gba_no_pred}')
+    print(f'🎉 GBA Embedding Success Rate: {successful_embeddings_gba_no_pred / VNF_NUM * 100:.2f}%')
 if __name__ == '__main__':
     main()
