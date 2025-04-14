@@ -2,6 +2,7 @@
 from Substrate import SubstrateNetwork, SubstrateNode, VNF, haversine
 from env_simulation import generate_dataset
 from user_prediction import train_user_prediction_model, predict_user_locations
+from KMeans import apply_kmeans_clustering;
 import pandas as pd;
 import numpy as np
 
@@ -134,7 +135,8 @@ def main():
     # ...
     # vnf_clusters = [[], [], [], ...]
     """
-    vnf_clusters = [[], [], [], ...]
+    _,vnf_clusters = apply_kmeans_clustering(base_stations)
+    # vnf_clusters = [[], [], [], ...]
  
 
     # Run GCBA
