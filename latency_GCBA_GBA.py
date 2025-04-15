@@ -6,8 +6,8 @@ from KMeans import apply_kmeans_clustering;
 import pandas as pd;
 import numpy as np
 
-VNF_NUM = 10  # Number of VNFs
-BASE_STATION_NUM = 5  # Number of base stations
+VNF_NUM = 100  # Number of VNFs
+BASE_STATION_NUM = 50  # Number of base stations
 
 """
 Adapted from the paper:
